@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/section_label.dart';
 import '../../../domain/entities/order_status.dart';
@@ -55,13 +57,29 @@ class AdminDashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+          Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => context.read<AuthProvider>().logout(),
+                child: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
           ),
         ],
       ),

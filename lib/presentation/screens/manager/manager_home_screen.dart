@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/order_status.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/status_chip.dart';
 
@@ -73,27 +75,44 @@ class ManagerHomeScreen extends StatelessWidget {
               ],
             ),
           ),
-          Stack(
+          Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+              Stack(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Positioned(
-                top: 6,
-                right: 6,
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => context.read<AuthProvider>().logout(),
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.accent,
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 20),
                 ),
               ),
             ],
