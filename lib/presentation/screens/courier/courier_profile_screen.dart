@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
 
 class CourierProfileScreen extends StatelessWidget {
   const CourierProfileScreen({super.key});
@@ -106,7 +107,9 @@ class CourierProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () => context.go('/'),
+            onTap: () async {
+                await context.read<AuthProvider>().logout();
+              },
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
