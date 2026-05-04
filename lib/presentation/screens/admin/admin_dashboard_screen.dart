@@ -65,20 +65,35 @@ class AdminDashboardScreen extends StatelessWidget {
                 child: Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0x55EF4444),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.logout, color: Colors.white, size: 20),
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                  ),
+                  Positioned(
+                    top: 2, right: 2,
+                    child: Container(
+                      width: 8, height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5A623),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
