@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 
 class TopBar extends StatelessWidget implements PreferredSizeWidget {
@@ -19,7 +20,7 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
       scrolledUnderElevation: 0,
       leading: showBack
           ? GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
+              onTap: () { if (context.canPop()) context.pop(); },
               child: Center(
                 child: Container(
                   width: 36, height: 36,
