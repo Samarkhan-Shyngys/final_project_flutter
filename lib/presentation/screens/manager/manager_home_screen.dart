@@ -48,9 +48,9 @@ class ManagerHomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Алина Иванова 👋',
-                  style: TextStyle(
+                Text(
+                  '${context.read<AuthProvider>().name} 👋',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,

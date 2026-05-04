@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/section_label.dart';
 import '../../../domain/entities/order_status.dart';
@@ -46,8 +48,8 @@ class CourierHomeScreen extends StatelessWidget {
               children: [
                 Text('Добрый день,', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
                 const SizedBox(height: 4),
-                const Text('Александр Курьеров 🚚',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text('${context.read<AuthProvider>().name} 🚚',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
                 const SizedBox(height: 6),
                 Text('📅 Понедельник, 16 марта',
                     style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6))),
