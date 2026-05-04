@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/order_status.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/order_provider.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/status_chip.dart';
 
@@ -124,18 +125,23 @@ class ManagerHomeScreen extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context) {
+    final orders = context.watch<OrderProvider>().orders;
+    final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).length;
+    final inDelivery = orders.where((o) => o.status == OrderStatus.inDelivery).length;
+    final delivered  = orders.where((o) => o.status == OrderStatus.delivered).length;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              _StatTile(label: 'В работе',   value: '3',  color: AppColors.courierAmber),
-              SizedBox(width: 8),
-              _StatTile(label: 'В доставке', value: '1',  color: AppColors.adminBlue),
-              SizedBox(width: 8),
-              _StatTile(label: 'Выполнено',  value: '12', color: Color(0xFF3B6D11)),
+              _StatTile(label: 'В работе',   value: '$inProgress', color: AppColors.courierAmber),
+              const SizedBox(width: 8),
+              _StatTile(label: 'В доставке', value: '$inDelivery',  color: AppColors.adminBlue),
+              const SizedBox(width: 8),
+              _StatTile(label: 'Выполнено',  value: '$delivered',  color: const Color(0xFF3B6D11)),
             ],
           ),
           const SizedBox(height: 24),
