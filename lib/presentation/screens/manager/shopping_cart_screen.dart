@@ -5,7 +5,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/cart_item.dart';
+import '../../../domain/entities/order_item_entity.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/order_provider.dart';
 import '../../widgets/quantity_stepper.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/top_bar.dart';
@@ -19,12 +22,25 @@ class ShoppingCartScreen extends StatefulWidget {
 
 class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
   bool _orderPlaced = false;
+  String _newOrderId = '';
 
   static final _currencyFormat = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
 
-  void _placeOrder(CartProvider cart) {
+  Future<void> _placeOrder(CartProvider cart) async {
+    final auth = context.read<AuthProvider>();
+    final orderProvider = context.read<OrderProvider>();
+    final items = cart.items.map((c) => OrderItemEntity(
+      name: c.name, quantity: c.quantity, unit: c.unit, price: c.price,
+    )).toList();
+    final id = await orderProvider.createOrder(
+      kindergartenName: 'Детский сад №45 «Ромашка»',
+      address: 'ул. Ленина 12',
+      phone: '+7 727 123-45-67',
+      managerName: auth.name.isEmpty ? 'Менеджер' : auth.name,
+      items: items,
+    );
     cart.clear();
-    setState(() => _orderPlaced = true);
+    setState(() { _orderPlaced = true; _newOrderId = id; });
   }
 
   @override
@@ -81,15 +97,15 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                           child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Заказ #2851',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
+                              'Заказ #$_newOrderId',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text),
                             ),
-                            SizedBox(height: 4),
-                            Text(
+                            const SizedBox(height: 4),
+                            const Text(
                               'Принят в обработку',
                               style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                             ),
