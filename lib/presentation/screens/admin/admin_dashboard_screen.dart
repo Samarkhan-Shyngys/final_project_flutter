@@ -58,26 +58,27 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => context.read<AuthProvider>().logout(),
                 child: Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: const Color(0x55EF4444),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.logout, color: Colors.white, size: 20),
                 ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
               ),
             ],
           ),

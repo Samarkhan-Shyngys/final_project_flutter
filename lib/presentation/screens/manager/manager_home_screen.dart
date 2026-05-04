@@ -76,21 +76,36 @@ class ManagerHomeScreen extends StatelessWidget {
             ),
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              GestureDetector(
+                onTap: () => context.read<AuthProvider>().logout(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0x55EF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 20), // ignore: prefer_const_constructors
+                ),
+              ),
+              const SizedBox(width: 8),
               Stack(
+                clipBehavior: Clip.none,
                 children: [
                   Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: Colors.white.withValues(alpha: 0.25),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
                   ),
                   Positioned(
-                    top: 6,
-                    right: 6,
+                    top: 2,
+                    right: 2,
                     child: Container(
                       width: 8,
                       height: 8,
@@ -101,19 +116,6 @@ class ManagerHomeScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => context.read<AuthProvider>().logout(),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.logout, color: Colors.white, size: 20),
-                ),
               ),
             ],
           ),
