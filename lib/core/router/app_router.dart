@@ -27,9 +27,16 @@ GoRouter createRouter(AuthProvider auth) {
     refreshListenable: auth,
     redirect: (context, state) {
       final loggedIn = auth.isLoggedIn;
-      final isAuth = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+      final loc = state.matchedLocation;
+      final isAuth = loc == '/login' || loc == '/register';
       if (!loggedIn && !isAuth) return '/login';
-      if (loggedIn && isAuth) return '/';
+      if (loggedIn && (isAuth || loc == '/')) {
+        return switch (auth.role) {
+          'admin'   => '/admin',
+          'courier' => '/courier',
+          _         => '/manager',
+        };
+      }
       return null;
     },
     routes: [
