@@ -21,7 +21,6 @@ class ManagerHomeScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(context)),
-            SliverToBoxAdapter(child: _buildStatsRow(context)),
             SliverToBoxAdapter(child: _buildBody(context)),
           ],
         ),
@@ -33,7 +32,7 @@ class ManagerHomeScreen extends StatelessWidget {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       color: AppColors.primary,
-      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 40),
+      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -124,30 +123,22 @@ class ManagerHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context) {
-    return Transform.translate(
-      offset: const Offset(0, -20),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            _StatTile(label: 'В работе', value: '3', bg: AppColors.courierAmberLight, color: AppColors.courierAmber),
-            SizedBox(width: 8),
-            _StatTile(label: 'В доставке', value: '1', bg: AppColors.adminBlueLight, color: AppColors.adminBlue),
-            SizedBox(width: 8),
-            _StatTile(label: 'Выполнено', value: '12', bg: Color(0xFFDCFCE7), color: Color(0xFF3B6D11)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBody(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 0, bottom: 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              _StatTile(label: 'В работе',   value: '3',  color: AppColors.courierAmber),
+              SizedBox(width: 8),
+              _StatTile(label: 'В доставке', value: '1',  color: AppColors.adminBlue),
+              SizedBox(width: 8),
+              _StatTile(label: 'Выполнено',  value: '12', color: Color(0xFF3B6D11)),
+            ],
+          ),
+          const SizedBox(height: 24),
           _buildQuickActions(context),
           const SizedBox(height: 24),
           _buildRecentOrders(context),
@@ -159,48 +150,45 @@ class ManagerHomeScreen extends StatelessWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionLabel('БЫСТРЫЕ ДЕЙСТВИЯ'),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionCard(
-                  emoji: '➕',
-                  label: '+ Новый заказ',
-                  bgColor: AppColors.primaryLight,
-                  textColor: AppColors.primary,
-                  onTap: () => context.go('/manager/catalog'),
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionLabel('БЫСТРЫЕ ДЕЙСТВИЯ'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '➕',
+                label: '+ Новый заказ',
+                bgColor: AppColors.primaryLight,
+                textColor: AppColors.primary,
+                onTap: () => context.go('/manager/catalog'),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _QuickActionCard(
-                  emoji: '📦',
-                  label: 'Каталог',
-                  bgColor: AppColors.adminBlueLight,
-                  textColor: AppColors.adminBlue,
-                  onTap: () => context.go('/manager/catalog'),
-                ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '📦',
+                label: 'Каталог',
+                bgColor: AppColors.adminBlueLight,
+                textColor: AppColors.adminBlue,
+                onTap: () => context.go('/manager/catalog'),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _QuickActionCard(
-                  emoji: '🛒',
-                  label: 'Корзина',
-                  bgColor: AppColors.courierAmberLight,
-                  textColor: AppColors.courierAmber,
-                  onTap: () => context.go('/manager/cart'),
-                ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _QuickActionCard(
+                emoji: '🛒',
+                label: 'Корзина',
+                bgColor: AppColors.courierAmberLight,
+                textColor: AppColors.courierAmber,
+                onTap: () => context.go('/manager/cart'),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -211,38 +199,33 @@ class ManagerHomeScreen extends StatelessWidget {
       _OrderData(id: '2818', status: OrderStatus.inProgress, date: '10 марта', items: 11, amount: 4120),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const SectionLabel('ПОСЛЕДНИЕ ЗАКАЗЫ'),
-              TextButton(
-                onPressed: () => context.go('/manager/orders'),
-                child: const Text(
-                  'Все заказы',
-                  style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const SectionLabel('ПОСЛЕДНИЕ ЗАКАЗЫ'),
+            TextButton(
+              onPressed: () => context.go('/manager/orders'),
+              child: const Text(
+                'Все заказы',
+                style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...orders.map((order) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _OrderCard(order: order, onTap: () => context.go('/manager/order/${order.id}')),
-              )),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...orders.map((order) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _OrderCard(order: order, onTap: () => context.go('/manager/order/${order.id}')),
+            )),
+      ],
     );
   }
 
   Widget _buildDeliveryBanner() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
+    return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -281,7 +264,6 @@ class ManagerHomeScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -289,38 +271,33 @@ class ManagerHomeScreen extends StatelessWidget {
 class _StatTile extends StatelessWidget {
   final String label;
   final String value;
-  final Color bg;
   final Color color;
 
-  const _StatTile({required this.label, required this.value, required this.bg, required this.color});
+  const _StatTile({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
-            BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
+            BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                value,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color),
-              ),
+            Text(
+              value,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               label,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8)),
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
           ],
         ),
