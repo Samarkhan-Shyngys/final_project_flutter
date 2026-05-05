@@ -1,19 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../providers/cart_provider.dart';
+import '../../providers/cart_notifier.dart';
 
-class ManagerShell extends StatefulWidget {
+class ManagerShell extends ConsumerStatefulWidget {
   final Widget child;
   const ManagerShell({super.key, required this.child});
 
   @override
-  State<ManagerShell> createState() => _ManagerShellState();
+  ConsumerState<ManagerShell> createState() => _ManagerShellState();
 }
 
-class _ManagerShellState extends State<ManagerShell> {
+class _ManagerShellState extends ConsumerState<ManagerShell> {
   static const _tabs = ['/manager', '/manager/catalog', '/manager/cart', '/manager/orders'];
+
+  static int _activeIndex(String location) {
+    int best = 0;
+    int bestLen = -1;
+    for (int i = 0; i < _tabs.length; i++) {
+      final t = _tabs[i];
+      if (location == t || location.startsWith('$t/')) {
+        if (t.length > bestLen) {
+          bestLen = t.length;
+          best = i;
+        }
+      }
+    }
+    return bestLen >= 0 ? best : 0;
+  }
 
   void _onTap(int index) {
     context.go(_tabs[index]);
@@ -21,29 +36,27 @@ class _ManagerShellState extends State<ManagerShell> {
 
   @override
   Widget build(BuildContext context) {
+    final cart = ref.watch(cartProvider);
     final location = GoRouterState.of(context).uri.path;
-    final idx = _tabs.indexWhere((t) => location.startsWith(t) && (location == t || location.length > t.length));
-    final activeIndex = idx >= 0 ? idx : _tabs.indexOf(location);
+    final activeIndex = _activeIndex(location);
 
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: Consumer<CartProvider>(
-        builder: (_, cart, __) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
-          ),
-          child: SafeArea(
-            child: SizedBox(
-              height: 72,
-              child: Row(
-                children: [
-                  _NavItem(icon: Icons.home_outlined, label: 'Главная',  index: 0, active: activeIndex == 0, onTap: _onTap),
-                  _NavItem(icon: Icons.inventory_2_outlined, label: 'Каталог', index: 1, active: activeIndex == 1, onTap: _onTap),
-                  _CartNavItem(count: cart.totalItems, index: 2, active: activeIndex == 2, onTap: _onTap),
-                  _NavItem(icon: Icons.assignment_outlined, label: 'Заказы', index: 3, active: activeIndex == 3, onTap: _onTap),
-                ],
-              ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 72,
+            child: Row(
+              children: [
+                _NavItem(icon: Icons.home_outlined, label: 'Главная',  index: 0, active: activeIndex == 0, onTap: _onTap),
+                _NavItem(icon: Icons.inventory_2_outlined, label: 'Каталог', index: 1, active: activeIndex == 1, onTap: _onTap),
+                _CartNavItem(count: cart.totalItems, index: 2, active: activeIndex == 2, onTap: _onTap),
+                _NavItem(icon: Icons.assignment_outlined, label: 'Заказы', index: 3, active: activeIndex == 3, onTap: _onTap),
+              ],
             ),
           ),
         ),

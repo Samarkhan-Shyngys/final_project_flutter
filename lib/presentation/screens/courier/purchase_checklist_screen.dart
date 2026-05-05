@@ -1,200 +1,223 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../providers/order_notifier.dart';
 import '../../widgets/top_bar.dart';
+import '../../../domain/entities/product.dart';
+import '../../../domain/entities/order_status.dart';
 
 class _CheckItem {
-  final String name, qty;
-  bool checked;
-  _CheckItem({required this.name, required this.qty, required this.checked});
+  final String name, unit;
+  final int totalQty;
+  _CheckItem({required this.name, required this.unit, required this.totalQty});
 }
 
-class PurchaseChecklistScreen extends StatefulWidget {
+class _Group {
+  final String emoji, name;
+  final List<_CheckItem> items;
+  final Color color, bgColor;
+  _Group({required this.emoji, required this.name, required this.items,
+          required this.color, required this.bgColor});
+}
+
+class PurchaseChecklistScreen extends ConsumerStatefulWidget {
   const PurchaseChecklistScreen({super.key});
 
   @override
-  State<PurchaseChecklistScreen> createState() => _PurchaseChecklistScreenState();
+  ConsumerState<PurchaseChecklistScreen> createState() => _PurchaseChecklistScreenState();
 }
 
-class _PurchaseChecklistScreenState extends State<PurchaseChecklistScreen> {
-  final List<_CheckItem> _vegetables = [
-    _CheckItem(name: 'Картофель',  qty: '285 кг', checked: true),
-    _CheckItem(name: 'Морковь',    qty: '164 кг', checked: true),
-    _CheckItem(name: 'Капуста',    qty: '198 кг', checked: false),
-    _CheckItem(name: 'Лук',        qty: '112 кг', checked: true),
-    _CheckItem(name: 'Свёкла',     qty: '95 кг',  checked: false),
-    _CheckItem(name: 'Огурцы',     qty: '48 кг',  checked: true),
-  ];
-  final List<_CheckItem> _fruits = [
-    _CheckItem(name: 'Яблоки',     qty: '210 кг', checked: false),
-    _CheckItem(name: 'Бананы',     qty: '156 кг', checked: true),
-    _CheckItem(name: 'Апельсины',  qty: '88 кг',  checked: false),
-    _CheckItem(name: 'Груши',      qty: '72 кг',  checked: false),
-  ];
-  final List<_CheckItem> _supplies = [
-    _CheckItem(name: 'Мыло хозяйственное', qty: '84 шт',  checked: true),
-    _CheckItem(name: 'Средство для посуды', qty: '24 л',  checked: true),
-    _CheckItem(name: 'Перчатки латексные', qty: '40 пар', checked: false),
-    _CheckItem(name: 'Мешки для мусора',   qty: '36 уп',  checked: false),
-    _CheckItem(name: 'Жидкое мыло',        qty: '18 л',   checked: true),
-  ];
-
-  List<_CheckItem> get _all => [..._vegetables, ..._fruits, ..._supplies];
-
-  int get _checkedCount => _all.where((i) => i.checked).length;
-  int get _total => _all.length;
-  bool get _allDone => _checkedCount == _total;
-
-  void _toggle(List<_CheckItem> list, int index) {
-    setState(() => list[index].checked = !list[index].checked);
-  }
+class _PurchaseChecklistScreenState extends ConsumerState<PurchaseChecklistScreen> {
+  final Map<String, bool> _checked = {};
 
   @override
   Widget build(BuildContext context) {
-    final pct = (_checkedCount / _total * 100).round();
+    final orderState = ref.watch(orderProvider);
+    final activeOrders = orderState.orders
+        .where((o) => o.status == OrderStatus.inDelivery || o.status == OrderStatus.inProgress)
+        .toList();
+
+    final Map<String, int> qtyMap = {};
+    final Map<String, String> unitMap = { for (final p in kProducts) p.name: p.unit };
+    for (final order in activeOrders) {
+      for (final item in order.items) {
+        qtyMap.update(item.name, (v) => v + item.quantity, ifAbsent: () => item.quantity);
+        unitMap.putIfAbsent(item.name, () => item.unit);
+      }
+    }
+
+    final nameToCat = { for (final p in kProducts) p.name: p.category };
+    final Map<String, List<_CheckItem>> byCat = {};
+    for (final entry in qtyMap.entries) {
+      final cat = nameToCat[entry.key] ?? 'other';
+      byCat.putIfAbsent(cat, () => []);
+      byCat[cat]!.add(_CheckItem(
+        name: entry.key, unit: unitMap[entry.key] ?? '', totalQty: entry.value));
+    }
+
+    final groups = <_Group>[
+      if (byCat['vegetables'] != null)
+        _Group(emoji: '🥕', name: 'Овощи', items: byCat['vegetables']!,
+               color: AppColors.primary, bgColor: AppColors.primaryLight),
+      if (byCat['fruits'] != null)
+        _Group(emoji: '🍎', name: 'Фрукты', items: byCat['fruits']!,
+               color: AppColors.courierAmber, bgColor: AppColors.courierAmberLight),
+      if (byCat['supplies'] != null)
+        _Group(emoji: '🧹', name: 'Хозтовары', items: byCat['supplies']!,
+               color: AppColors.adminBlue, bgColor: AppColors.adminBlueLight),
+    ];
+
+    final allItems = groups.expand((g) => g.items).toList();
+    final totalCount = allItems.length;
+    final checkedCount = allItems.where((i) => _checked[i.name] == true).length;
+    final pct = totalCount == 0 ? 0 : (checkedCount * 100 ~/ totalCount);
+    final allDone = totalCount > 0 && checkedCount == totalCount;
+
+    final now = DateTime.now();
+    final months = ['января','февраля','марта','апреля','мая','июня',
+                    'июля','августа','сентября','октября','ноября','декабря'];
+    final dateStr = '${now.day} ${months[now.month - 1]} ${now.year}';
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: TopBar(
         title: 'Закупочный лист',
         showBack: false,
-        action: Text('$_checkedCount/$_total',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+        action: Text('$checkedCount/$totalCount', style: const TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
       ),
       body: Column(
         children: [
-          _buildProgress(pct),
-          Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildGroup('🥕 ОВОЩИ', _vegetables, AppColors.primary, AppColors.primaryLight),
-                const SizedBox(height: 12),
-                _buildGroup('🍎 ФРУКТЫ', _fruits, const Color(0xFFB45309), AppColors.courierAmberLight),
-                const SizedBox(height: 12),
-                _buildGroup('🧹 ХОЗТОВАРЫ', _supplies, AppColors.adminBlue, AppColors.adminBlueLight),
-                if (_allDone) ...[
-                  const SizedBox(height: 20),
-                  _buildCompleteButton(),
-                ],
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('$dateStr · Рынок «Зелёный»',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  Text('$pct%', style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                ]),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: totalCount == 0 ? 0 : checkedCount / totalCount,
+                  backgroundColor: AppColors.border,
+                  color: AppColors.primary,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(100),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgress(int pct) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('16 марта 2026 · Рынок «Зелёный»',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-              Text('$pct%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(100),
-            child: LinearProgressIndicator(
-              value: _checkedCount / _total,
-              minHeight: 8,
-              backgroundColor: AppColors.border,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGroup(String title, List<_CheckItem> items, Color color, Color bg) {
-    final checked = items.where((i) => i.checked).length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
-              Text('$checked/${items.length}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        ...List.generate(items.length, (i) => Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: GestureDetector(
-            onTap: () => _toggle(items, i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
-              ),
-              child: Row(
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: const ScrollBehavior().copyWith(scrollbars: false),
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 28, height: 28,
-                    decoration: BoxDecoration(
-                      color: items[i].checked ? AppColors.primary : AppColors.border,
-                      borderRadius: BorderRadius.circular(8),
-                      border: items[i].checked ? null : Border.all(color: const Color(0xFFD1D5DB), width: 2),
-                    ),
-                    child: items[i].checked
-                        ? const Icon(Icons.check, color: Colors.white, size: 16)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      items[i].name,
-                      style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600,
-                        color: items[i].checked ? AppColors.textMuted : AppColors.text,
-                        decoration: items[i].checked ? TextDecoration.lineThrough : null,
+                  if (allItems.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Text('🛒', style: TextStyle(fontSize: 48)),
+                          SizedBox(height: 12),
+                          Text('Нет активных заказов',
+                              style: TextStyle(fontSize: 15, color: AppColors.textMuted)),
+                        ]),
                       ),
-                    ),
-                  ),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: items[i].checked ? AppColors.primaryLight : const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(items[i].qty,
-                        style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600,
-                          color: items[i].checked ? AppColors.primary : const Color(0xFF374151),
-                        )),
-                  ),
+                    )
+                  else
+                    ...groups.expand((g) => [
+                      _buildGroupHeader(g),
+                      ...g.items.map((item) => _buildCheckItem(item, g)),
+                    ]),
+                  if (allDone) ...[
+                    const SizedBox(height: 16),
+                    _buildDoneButton(),
+                  ],
                 ],
               ),
             ),
           ),
-        )),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildCompleteButton() {
+  Widget _buildGroupHeader(_Group g) {
+    final checkedInGroup = g.items.where((i) => _checked[i.name] == true).length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(color: g.bgColor, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${g.emoji} ${g.name}',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: g.color)),
+            Text('$checkedInGroup/${g.items.length}',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: g.color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckItem(_CheckItem item, _Group g) {
+    final done = _checked[item.name] == true;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: () => setState(() => _checked[item.name] = !done),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+          decoration: BoxDecoration(
+            color: AppColors.white, borderRadius: BorderRadius.circular(16),
+            boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          child: Row(children: [
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: done ? AppColors.primary : AppColors.border,
+                borderRadius: BorderRadius.circular(8),
+                border: done ? null : Border.all(color: const Color(0xFFD1D5DB), width: 2),
+              ),
+              child: done ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(item.name, style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w600,
+              color: done ? AppColors.textMuted : AppColors.text,
+              decoration: done ? TextDecoration.lineThrough : null,
+            ))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: done ? AppColors.primaryLight : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text('${item.totalQty} ${item.unit}', style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600,
+                color: done ? AppColors.primary : const Color(0xFF374151),
+              )),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoneButton() {
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.primary, borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x661A6B4A), blurRadius: 16, offset: Offset(0, 4))],
       ),
       child: const Row(
@@ -202,7 +225,8 @@ class _PurchaseChecklistScreenState extends State<PurchaseChecklistScreen> {
         children: [
           Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
           SizedBox(width: 8),
-          Text('Закупка завершена!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+          Text('Закупка завершена!',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
         ],
       ),
     );

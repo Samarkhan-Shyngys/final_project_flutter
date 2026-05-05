@@ -46,7 +46,7 @@ class RoleSelectScreen extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'ДЕТПИТ',
+                'ZakupAI',
                 style: TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w600,
                   color: Colors.white, letterSpacing: 1.5,

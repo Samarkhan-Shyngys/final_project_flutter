@@ -1,40 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../providers/auth_notifier.dart';
+import '../../providers/order_notifier.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/top_bar.dart';
-import '../../providers/order_provider.dart';
 import '../../../domain/entities/order_entity.dart';
 
-class OrdersHistoryScreen extends StatelessWidget {
+class OrdersHistoryScreen extends ConsumerWidget {
   const OrdersHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    final orderState = ref.watch(orderProvider);
+    final kgIds = auth.currentUser?.kindergartenIds ?? [];
+    final orders = orderState.ordersForKindergartens(kgIds);
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: const TopBar(title: 'История заказов'),
-      body: Consumer<OrderProvider>(
-        builder: (_, provider, __) {
-          final orders = provider.orders;
-          if (orders.isEmpty) {
-            return const Center(
+      body: orders.isEmpty
+          ? const Center(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text('📋', style: TextStyle(fontSize: 48)),
                 SizedBox(height: 12),
-                Text('Нет заказов', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                Text('Нет заказов',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
               ]),
-            );
-          }
-          return ListView.builder(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            itemCount: orders.length,
-            itemBuilder: (_, i) => _OrderCard(order: orders[i]),
-          );
-        },
-      ),
+            )
+          : ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              itemCount: orders.length,
+              itemBuilder: (_, i) => _OrderCard(order: orders[i]),
+            ),
     );
   }
 }
@@ -69,7 +70,7 @@ class _OrderCard extends StatelessWidget {
                       StatusChip(status: order.status, size: ChipSize.sm),
                     ]),
                     const SizedBox(height: 4),
-                    Text('${order.date} • ${order.itemCount} поз. • ${order.total.toInt()} ₽',
+                    Text('${order.date} • ${order.itemCount} поз. • ${order.total.toInt()} ₸',
                         style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   ],
                 ),

@@ -5,6 +5,7 @@ class OrderEntity {
   final String id;
   final OrderStatus status;
   final String date;
+  final String? kindergartenId;
   final String kindergartenName;
   final String address;
   final String phone;
@@ -15,6 +16,7 @@ class OrderEntity {
     required this.id,
     required this.status,
     required this.date,
+    this.kindergartenId,
     required this.kindergartenName,
     required this.address,
     required this.phone,
@@ -29,6 +31,7 @@ class OrderEntity {
     id: id,
     status: status ?? this.status,
     date: date,
+    kindergartenId: kindergartenId,
     kindergartenName: kindergartenName,
     address: address,
     phone: phone,
@@ -40,6 +43,7 @@ class OrderEntity {
     'id': id,
     'status': status.name,
     'date': date,
+    'kindergartenId': kindergartenId,
     'kindergartenName': kindergartenName,
     'address': address,
     'phone': phone,
@@ -49,8 +53,10 @@ class OrderEntity {
 
   factory OrderEntity.fromMap(Map<String, dynamic> m) => OrderEntity(
     id: m['id'] as String,
-    status: OrderStatus.values.firstWhere((s) => s.name == m['status'], orElse: () => OrderStatus.draft),
+    status: OrderStatus.values.firstWhere(
+        (s) => s.name == m['status'], orElse: () => OrderStatus.draft),
     date: m['date'] as String,
+    kindergartenId: (m['kindergartenId'] as String?) ?? '',
     kindergartenName: m['kindergartenName'] as String,
     address: m['address'] as String,
     phone: m['phone'] as String,

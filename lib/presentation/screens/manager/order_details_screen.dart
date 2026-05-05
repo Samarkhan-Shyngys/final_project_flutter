@@ -1,58 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/format_utils.dart';
 import '../../../domain/entities/order_entity.dart';
 import '../../../domain/entities/order_status.dart';
-import '../../providers/order_provider.dart';
+import '../../providers/order_notifier.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/top_bar.dart';
 
-class OrderDetailsScreen extends StatelessWidget {
+class OrderDetailsScreen extends ConsumerWidget {
   final String id;
   const OrderDetailsScreen({super.key, required this.id});
 
-  static final _fmt = NumberFormat.currency(locale: 'ru_RU', symbol: '₽', decimalDigits: 0);
-
   @override
-  Widget build(BuildContext context) {
-    return Consumer<OrderProvider>(
-      builder: (_, provider, __) {
-        final order = provider.getById(id);
-        if (order == null) {
-          return const Scaffold(
-            appBar: TopBar(title: 'Заказ не найден'),
-            body: Center(child: Text('Заказ не найден')),
-          );
-        }
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.dark,
-          child: Scaffold(
-            backgroundColor: AppColors.bg,
-            appBar: TopBar(
-              title: 'Заказ #${order.id}',
-              action: StatusChip(status: order.status, size: ChipSize.md),
-            ),
-            body: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              children: [
-                _buildKindergartenCard(order),
-                const SizedBox(height: 12),
-                _buildTimeline(order),
-                const SizedBox(height: 12),
-                _buildItemsCard(order),
-                if (order.status != OrderStatus.delivered) ...[
-                  const SizedBox(height: 12),
-                  _buildCancelButton(context, provider, order),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final orderState = ref.watch(orderProvider);
+    final order = orderState.getById(id);
+
+    if (order == null) {
+      return const Scaffold(
+        appBar: TopBar(title: 'Заказ не найден'),
+        body: Center(child: Text('Заказ не найден')),
+      );
+    }
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: TopBar(
+          title: 'Заказ #${order.id}',
+          action: StatusChip(status: order.status, size: ChipSize.md),
+        ),
+        body: ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          children: [
+            _buildKindergartenCard(order),
+            const SizedBox(height: 12),
+            _buildTimeline(order),
+            const SizedBox(height: 12),
+            _buildItemsCard(order),
+            if (order.status != OrderStatus.delivered) ...[
+              const SizedBox(height: 12),
+              _buildCancelButton(context, ref, order),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -103,8 +100,10 @@ class OrderDetailsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Создан: ${order.date}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-              Text('Менеджер: ${order.managerName}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              Text('Создан: ${order.date}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              Text('Менеджер: ${order.managerName}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
             ],
           ),
         ],
@@ -157,9 +156,11 @@ class OrderDetailsScreen extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Align(alignment: Alignment.centerLeft,
-                child: Text('Состав заказа',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text))),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Состав заказа',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
+            ),
           ),
           const Divider(height: 1, color: AppColors.border),
           ...order.items.map((item) => Column(children: [
@@ -173,12 +174,12 @@ class OrderDetailsScreen extends StatelessWidget {
                       children: [
                         Text(item.name,
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
-                        Text('${item.quantity} ${item.unit} × ${item.price.toInt()} ₽',
+                        Text('${item.quantity} ${item.unit} × ${item.price.toInt()} ₸',
                             style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                       ],
                     ),
                   ),
-                  Text(_fmt.format(item.total),
+                  Text(formatCurrency(item.total),
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
                 ],
               ),
@@ -192,7 +193,7 @@ class OrderDetailsScreen extends StatelessWidget {
               children: [
                 const Text('Итого',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
-                Text(_fmt.format(order.total),
+                Text(formatCurrency(order.total),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primary)),
               ],
             ),
@@ -202,7 +203,7 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCancelButton(BuildContext context, OrderProvider provider, OrderEntity order) {
+  Widget _buildCancelButton(BuildContext context, WidgetRef ref, OrderEntity order) {
     return GestureDetector(
       onTap: () async {
         final confirm = await showDialog<bool>(
@@ -221,7 +222,7 @@ class OrderDetailsScreen extends StatelessWidget {
           ),
         );
         if (confirm == true && context.mounted) {
-          await provider.deleteOrder(order.id);
+          await ref.read(orderProvider.notifier).deleteOrder(order.id);
           if (context.mounted) context.pop();
         }
       },

@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/entities/order_entity.dart';
 import '../../../domain/entities/order_status.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/order_provider.dart';
+import '../../providers/auth_notifier.dart';
+import '../../providers/order_notifier.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/status_chip.dart';
 
-class ManagerHomeScreen extends StatelessWidget {
+class ManagerHomeScreen extends ConsumerWidget {
   const ManagerHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    final orderState = ref.watch(orderProvider);
+    final kgIds = auth.currentUser?.kindergartenIds ?? [];
+    final orders = orderState.ordersForKindergartens(kgIds);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -21,16 +27,23 @@ class ManagerHomeScreen extends StatelessWidget {
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(context)),
-            SliverToBoxAdapter(child: _buildBody(context)),
+            SliverToBoxAdapter(child: _buildHeader(context, ref, auth)),
+            SliverToBoxAdapter(child: _buildBody(context, ref, auth, orders)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, AuthState auth) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final kgId = auth.currentUser?.kindergartenIds.isNotEmpty == true
+        ? auth.currentUser!.kindergartenIds.first
+        : null;
+    final kgName = kgId != null
+        ? (auth.kindergartenById(kgId)?.name ?? 'Детский сад')
+        : 'Детский сад';
+
     return Container(
       color: AppColors.primary,
       padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 24),
@@ -43,19 +56,12 @@ class ManagerHomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Добрый день,',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${context.read<AuthProvider>().name} 👋',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                  '${auth.name} 👋',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -65,11 +71,8 @@ class ManagerHomeScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text(
-                    '🏫 Детский сад №45 «Ромашка»',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
+                    '🏫 $kgName',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9)),
                   ),
                 ),
               ],
@@ -79,15 +82,11 @@ class ManagerHomeScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () => context.read<AuthProvider>().logout(),
+                onTap: () => ref.read(authProvider.notifier).logout(),
                 child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: Color(0x55EF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.logout, color: Colors.white, size: 20), // ignore: prefer_const_constructors
+                  width: 40, height: 40,
+                  decoration: const BoxDecoration(color: Color(0x55EF4444), shape: BoxShape.circle),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 20),
                 ),
               ),
               const SizedBox(width: 8),
@@ -95,8 +94,7 @@ class ManagerHomeScreen extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 40, height: 40,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.25),
                       shape: BoxShape.circle,
@@ -104,15 +102,10 @@ class ManagerHomeScreen extends StatelessWidget {
                     child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
                   ),
                   Positioned(
-                    top: 2,
-                    right: 2,
+                    top: 2, right: 2,
                     child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
+                      width: 8, height: 8,
+                      decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                     ),
                   ),
                 ],
@@ -124,8 +117,7 @@ class ManagerHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    final orders = context.watch<OrderProvider>().orders;
+  Widget _buildBody(BuildContext context, WidgetRef ref, AuthState auth, List<OrderEntity> orders) {
     final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).length;
     final inDelivery = orders.where((o) => o.status == OrderStatus.inDelivery).length;
     final delivered  = orders.where((o) => o.status == OrderStatus.delivered).length;
@@ -147,7 +139,7 @@ class ManagerHomeScreen extends StatelessWidget {
           const SizedBox(height: 24),
           _buildQuickActions(context),
           const SizedBox(height: 24),
-          _buildRecentOrders(context),
+          _buildRecentOrders(context, orders),
           const SizedBox(height: 24),
           _buildDeliveryBanner(),
         ],
@@ -165,30 +157,24 @@ class ManagerHomeScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _QuickActionCard(
-                emoji: '➕',
-                label: '+ Новый заказ',
-                bgColor: AppColors.primaryLight,
-                textColor: AppColors.primary,
+                emoji: '➕', label: '+ Новый заказ',
+                bgColor: AppColors.primaryLight, textColor: AppColors.primary,
                 onTap: () => context.go('/manager/catalog'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _QuickActionCard(
-                emoji: '📦',
-                label: 'Каталог',
-                bgColor: AppColors.adminBlueLight,
-                textColor: AppColors.adminBlue,
+                emoji: '📦', label: 'Каталог',
+                bgColor: AppColors.adminBlueLight, textColor: AppColors.adminBlue,
                 onTap: () => context.go('/manager/catalog'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _QuickActionCard(
-                emoji: '🛒',
-                label: 'Корзина',
-                bgColor: AppColors.courierAmberLight,
-                textColor: AppColors.courierAmber,
+                emoji: '🛒', label: 'Корзина',
+                bgColor: AppColors.courierAmberLight, textColor: AppColors.courierAmber,
                 onTap: () => context.go('/manager/cart'),
               ),
             ),
@@ -198,12 +184,8 @@ class ManagerHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentOrders(BuildContext context) {
-    const orders = [
-      _OrderData(id: '2847', status: OrderStatus.inDelivery, date: '14 марта', items: 8, amount: 3450),
-      _OrderData(id: '2831', status: OrderStatus.delivered, date: '12 марта', items: 5, amount: 2890),
-      _OrderData(id: '2818', status: OrderStatus.inProgress, date: '10 марта', items: 11, amount: 4120),
-    ];
+  Widget _buildRecentOrders(BuildContext context, List<OrderEntity> orders) {
+    final recent = orders.take(3).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,61 +204,77 @@ class ManagerHomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        ...orders.map((order) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _OrderCard(order: order, onTap: () => context.go('/manager/order/${order.id}')),
-            )),
+        if (recent.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text('Нет заказов',
+                  style: TextStyle(fontSize: 14, color: AppColors.textMuted)),
+            ),
+          )
+        else
+          ...recent.map((order) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _OrderCard(
+              order: _OrderData(
+                id: order.id,
+                status: order.status,
+                date: order.date,
+                items: order.itemCount,
+                amount: order.total.toInt(),
+              ),
+              onTap: () => context.go('/manager/order/${order.id}'),
+            ),
+          )),
       ],
     );
   }
 
   Widget _buildDeliveryBanner() {
     return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.primary, Color(0xFF2E9E6B)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF2E9E6B)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Следующая поставка',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Среда, 19 марта — 10:00',
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+                ),
+              ],
+            ),
           ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Следующая поставка',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Среда, 19 марта — 10:00',
-                    style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
-                  ),
-                ],
-              ),
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
             ),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(child: Text('📦', style: TextStyle(fontSize: 20))),
-            ),
-          ],
-        ),
+            child: const Center(child: Text('📦', style: TextStyle(fontSize: 20))),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _StatTile extends StatelessWidget {
-  final String label;
-  final String value;
+  final String label, value;
   final Color color;
 
   const _StatTile({required this.label, required this.value, required this.color});
@@ -289,22 +287,14 @@ class _StatTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
-          ],
+          boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              value,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color),
-            ),
+            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-            ),
+            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
           ],
         ),
       ),
@@ -313,18 +303,13 @@ class _StatTile extends StatelessWidget {
 }
 
 class _QuickActionCard extends StatefulWidget {
-  final String emoji;
-  final String label;
-  final Color bgColor;
-  final Color textColor;
+  final String emoji, label;
+  final Color bgColor, textColor;
   final VoidCallback onTap;
 
   const _QuickActionCard({
-    required this.emoji,
-    required this.label,
-    required this.bgColor,
-    required this.textColor,
-    required this.onTap,
+    required this.emoji, required this.label,
+    required this.bgColor, required this.textColor, required this.onTap,
   });
 
   @override
@@ -349,19 +334,13 @@ class _QuickActionCardState extends State<_QuickActionCard> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
-            ],
+            boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
           ),
           child: Column(
             children: [
               Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: widget.bgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: widget.bgColor, borderRadius: BorderRadius.circular(12)),
                 child: Center(child: Text(widget.emoji, style: const TextStyle(fontSize: 22))),
               ),
               const SizedBox(height: 8),
@@ -379,18 +358,13 @@ class _QuickActionCardState extends State<_QuickActionCard> {
 }
 
 class _OrderData {
-  final String id;
+  final String id, date;
   final OrderStatus status;
-  final String date;
-  final int items;
-  final int amount;
+  final int items, amount;
 
   const _OrderData({
-    required this.id,
-    required this.status,
-    required this.date,
-    required this.items,
-    required this.amount,
+    required this.id, required this.status,
+    required this.date, required this.items, required this.amount,
   });
 }
 
@@ -423,19 +397,13 @@ class _OrderCardState extends State<_OrderCard> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
-            ],
+            boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
           ),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                width: 48, height: 48,
+                decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 24),
               ),
               const SizedBox(width: 12),
@@ -445,19 +413,15 @@ class _OrderCardState extends State<_OrderCard> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Заказ #${order.id}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
-                        ),
+                        Text('Заказ #${order.id}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
                         const SizedBox(width: 8),
                         StatusChip(status: order.status, size: ChipSize.sm),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${order.date} • ${order.items} позиций',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                    ),
+                    Text('${order.date} • ${order.items} позиций',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   ],
                 ),
               ),
@@ -465,10 +429,8 @@ class _OrderCardState extends State<_OrderCard> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '${order.amount} ₽',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary),
-                  ),
+                  Text('${order.amount} ₸',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
                   const Icon(Icons.chevron_right, color: AppColors.textLight, size: 20),
                 ],
               ),

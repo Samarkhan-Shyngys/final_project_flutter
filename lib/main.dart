@@ -1,37 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'presentation/providers/auth_provider.dart';
-import 'presentation/providers/cart_provider.dart';
-import 'presentation/providers/order_provider.dart';
+import 'presentation/providers/auth_notifier.dart';
+import 'presentation/providers/order_notifier.dart';
+import 'presentation/providers/cart_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
 
-  final auth = AuthProvider();
-  await auth.init();
+  final container = ProviderContainer();
+  await container.read(authProvider.notifier).init();
+  await container.read(orderProvider.notifier).init();
+  await container.read(cartProvider.notifier).init();
 
-  final orders = OrderProvider();
-  await orders.init();
+  final appRouter = AppRouter(container);
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: auth),
-        ChangeNotifierProvider.value(value: orders),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
-      ],
-      child: DetpitApp(router: createRouter(auth)),
+    UncontrolledProviderScope(
+      container: container,
+      child: ZakupAIApp(router: appRouter.router),
     ),
   );
 }
 
-class DetpitApp extends StatelessWidget {
-  final dynamic router;
-  const DetpitApp({super.key, required this.router});
+class ZakupAIApp extends StatelessWidget {
+  final RouterConfig<Object> router;
+  const ZakupAIApp({super.key, required this.router});
 
   @override
   Widget build(BuildContext context) {

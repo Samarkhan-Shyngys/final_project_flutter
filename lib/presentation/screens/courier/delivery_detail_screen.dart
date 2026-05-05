@@ -1,178 +1,138 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../widgets/top_bar.dart';
-import '../../widgets/status_chip.dart';
+import '../../../domain/entities/order_entity.dart';
+import '../../../domain/entities/order_item_entity.dart';
 import '../../../domain/entities/order_status.dart';
+import '../../providers/order_notifier.dart';
+import '../../widgets/status_chip.dart';
+import '../../widgets/top_bar.dart';
 
-class _DeliveryItem {
-  final String name, qty;
-  bool delivered;
-  _DeliveryItem({required this.name, required this.qty, required this.delivered});
-}
-
-class _DeliveryData {
-  final String name, address, phone, contact, time, orderId;
-  final List<_DeliveryItem> items;
-  const _DeliveryData({required this.name, required this.address, required this.phone,
-      required this.contact, required this.time, required this.orderId, required this.items});
-}
-
-class DeliveryDetailScreen extends StatefulWidget {
+class DeliveryDetailScreen extends ConsumerStatefulWidget {
   final String id;
   const DeliveryDetailScreen({super.key, required this.id});
 
   @override
-  State<DeliveryDetailScreen> createState() => _DeliveryDetailScreenState();
+  ConsumerState<DeliveryDetailScreen> createState() => _DeliveryDetailScreenState();
 }
 
-class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
+class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
+  late List<bool> _delivered;
   bool _confirmed = false;
-  late List<_DeliveryItem> _items;
-  late _DeliveryData _data;
+
+  void _initChecklist(List<OrderItemEntity> items) {
+    if (_delivered.length != items.length) {
+      _delivered = List.filled(items.length, false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _data = _getDelivery(widget.id);
-    _items = _data.items;
+    _delivered = [];
   }
-
-  _DeliveryData _getDelivery(String id) {
-    switch (id) {
-      case '1':
-        return _DeliveryData(
-          name: 'ДС №12 «Берёзка»', address: 'ул. Ленина 45',
-          phone: '+7 777 123-45-67', contact: 'Петрова Мария Ивановна',
-          time: '09:00', orderId: '2847',
-          items: [
-            _DeliveryItem(name: 'Картофель',  qty: '40 кг',  delivered: true),
-            _DeliveryItem(name: 'Морковь',    qty: '15 кг',  delivered: true),
-            _DeliveryItem(name: 'Яблоки',     qty: '25 кг',  delivered: false),
-          ],
-        );
-      case '2':
-        return _DeliveryData(
-          name: 'ДС №7 «Солнышко»', address: 'ул. Пушкина 12',
-          phone: '+7 777 234-56-78', contact: 'Смирнова Ксения Валерьевна',
-          time: '11:00', orderId: '2846',
-          items: [
-            _DeliveryItem(name: 'Капуста',    qty: '30 кг',  delivered: false),
-            _DeliveryItem(name: 'Свёкла',     qty: '20 кг',  delivered: false),
-            _DeliveryItem(name: 'Бананы',     qty: '25 кг',  delivered: false),
-            _DeliveryItem(name: 'Мыло',       qty: '12 шт',  delivered: false),
-            _DeliveryItem(name: 'Средство',   qty: '5 л',    delivered: false),
-          ],
-        );
-      default:
-        return _DeliveryData(
-          name: 'ДС №23 «Радуга»', address: 'ул. Гагарина 78',
-          phone: '+7 777 345-67-89', contact: 'Козлова Наталья Анатольевна',
-          time: '14:00', orderId: '2845',
-          items: [
-            _DeliveryItem(name: 'Лук',        qty: '12 кг',  delivered: false),
-            _DeliveryItem(name: 'Апельсины',  qty: '20 кг',  delivered: false),
-          ],
-        );
-    }
-  }
-
-  int get _deliveredCount => _items.where((i) => i.delivered).length;
-  bool get _allDelivered => _deliveredCount == _items.length;
 
   @override
   Widget build(BuildContext context) {
-    if (_confirmed) return _buildSuccess(context);
+    final orderState = ref.watch(orderProvider);
+    final order = orderState.getById(widget.id);
+
+    if (order == null) {
+      return const Scaffold(
+        appBar: TopBar(title: 'Детали доставки'),
+        body: Center(child: Text('Заказ не найден')),
+      );
+    }
+
+    _initChecklist(order.items);
+
+    if (_confirmed) return _buildSuccess(context, order);
+
+    final allDelivered = _delivered.isNotEmpty && _delivered.every((v) => v);
+    final deliveredCount = _delivered.where((v) => v).length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: const TopBar(
+      appBar: TopBar(
         title: 'Детали доставки',
-        action: StatusChip(status: OrderStatus.inDelivery, size: ChipSize.sm),
+        action: StatusChip(status: order.status, size: ChipSize.sm),
       ),
       body: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          _buildKindergartenCard(),
+          _buildKgCard(order),
           const SizedBox(height: 12),
-          _buildChecklist(),
+          _buildChecklist(order, deliveredCount),
           const SizedBox(height: 16),
-          _buildConfirmButton(context),
+          _buildConfirmButton(order, allDelivered),
         ],
       ),
     );
   }
 
-  Widget _buildKindergartenCard() {
+  Widget _buildKgCard(OrderEntity order) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.white, borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                  color: AppColors.courierAmberLight, borderRadius: BorderRadius.circular(16)),
+              child: const Center(child: Text('🏫', style: TextStyle(fontSize: 28))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(order.kindergartenName, style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
+                const SizedBox(height: 4),
+                Row(children: [
+                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(order.address,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textMuted))),
+                ]),
+              ],
+            )),
+          ]),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.borderMid),
+          const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 56, height: 56,
-                decoration: BoxDecoration(color: AppColors.courierAmberLight, borderRadius: BorderRadius.circular(16)),
-                child: const Center(child: Text('🏫', style: TextStyle(fontSize: 28))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_data.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text(_data.address, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-                    ]),
-                  ],
-                ),
-              ),
+              Row(children: [
+                const Icon(Icons.phone_outlined, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Text(order.phone, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+              ]),
+              Row(children: [
+                const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Text('Заказ #${order.id}',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+              ]),
             ],
           ),
-          const Divider(height: 24),
-          Row(children: [
-            const Icon(Icons.person_outline, size: 14, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Expanded(child: Text(_data.contact, style: const TextStyle(fontSize: 13, color: AppColors.textMuted))),
-          ]),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => launchUrl(Uri.parse('tel:${_data.phone.replaceAll(' ', '').replaceAll('-', '')}')),
-            child: Row(children: [
-              const Icon(Icons.phone_outlined, size: 14, color: AppColors.primary),
-              const SizedBox(width: 4),
-              Text(_data.phone, style: const TextStyle(fontSize: 13, color: AppColors.primary)),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.textMuted),
-            const SizedBox(width: 4),
-            Text('Заказ #${_data.orderId} • ${_data.time}',
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-          ]),
         ],
       ),
     );
   }
 
-  Widget _buildChecklist() {
+  Widget _buildChecklist(OrderEntity order, int deliveredCount) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.white, borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: Column(
@@ -181,68 +141,60 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Позиции', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
-              Text('$_deliveredCount/${_items.length} передано',
+              const Text('Позиции', style: TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
+              Text('$deliveredCount/${order.items.length} передано',
                   style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
             ],
           ),
           const SizedBox(height: 12),
-          ..._items.asMap().entries.map((e) {
-            final i = e.key;
-            final item = e.value;
+          ...List.generate(order.items.length, (i) {
+            final item = order.items[i];
+            final done = i < _delivered.length && _delivered[i];
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: GestureDetector(
-                onTap: () => setState(() => _items[i].delivered = !_items[i].delivered),
+                onTap: () => setState(() {
+                  if (i < _delivered.length) _delivered[i] = !_delivered[i];
+                }),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: item.delivered ? const Color(0xFFF0FDF4) : const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(12),
+                    color: done ? const Color(0xFFF0FDF4) : const Color(0xFFF9FAFB),
                     border: Border.all(
-                      color: item.delivered ? const Color(0xFFBBF7D0) : AppColors.border,
-                      width: 1.5,
+                        color: done ? const Color(0xFFBBF7D0) : AppColors.border, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: done ? AppColors.primary : AppColors.border,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: done
+                          ? const Icon(Icons.check, color: Colors.white, size: 16)
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 28, height: 28,
-                        decoration: BoxDecoration(
-                          color: item.delivered ? AppColors.primary : AppColors.border,
-                          borderRadius: BorderRadius.circular(8),
-                          border: item.delivered ? null : Border.all(color: AppColors.borderMid, width: 2),
-                        ),
-                        child: item.delivered ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(item.name, style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600,
+                      color: done ? AppColors.textMuted : AppColors.text,
+                      decoration: done ? TextDecoration.lineThrough : null,
+                    ))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: done ? const Color(0xFFDCFCE7) : AppColors.border,
+                        borderRadius: BorderRadius.circular(100),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item.name,
-                          style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600,
-                            color: item.delivered ? AppColors.textMuted : AppColors.text,
-                            decoration: item.delivered ? TextDecoration.lineThrough : null,
-                          ),
-                        ),
-                      ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: item.delivered ? const Color(0xFFDCFCE7) : AppColors.border,
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        child: Text(item.qty,
-                            style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600,
-                              color: item.delivered ? const Color(0xFF16A34A) : AppColors.textMuted,
-                            )),
-                      ),
-                    ],
-                  ),
+                      child: Text('${item.quantity} ${item.unit}', style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600,
+                        color: done ? AppColors.primary : AppColors.textMuted,
+                      )),
+                    ),
+                  ]),
                 ),
               ),
             );
@@ -252,30 +204,37 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     );
   }
 
-  Widget _buildConfirmButton(BuildContext context) {
+  Widget _buildConfirmButton(OrderEntity order, bool allDelivered) {
     return GestureDetector(
-      onTap: _allDelivered ? () => setState(() => _confirmed = true) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      onTap: allDelivered
+          ? () async {
+              await ref.read(orderProvider.notifier).updateStatus(order.id, OrderStatus.delivered);
+              setState(() => _confirmed = true);
+            }
+          : null,
+      child: Container(
         height: 56,
         decoration: BoxDecoration(
-          color: _allDelivered ? AppColors.primary : AppColors.border,
+          color: allDelivered ? AppColors.primary : AppColors.border,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: _allDelivered
+          boxShadow: allDelivered
               ? const [BoxShadow(color: Color(0x661A6B4A), blurRadius: 16, offset: Offset(0, 4))]
               : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(_allDelivered ? Icons.check_circle_outline : Icons.lock_outline,
-                color: _allDelivered ? Colors.white : AppColors.textLight, size: 20),
+            Icon(
+              allDelivered ? Icons.check_circle_outline : Icons.pending_outlined,
+              color: allDelivered ? Colors.white : AppColors.textMuted,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Text(
-              _allDelivered ? 'Подтвердить доставку' : 'Отметьте все позиции',
+              allDelivered ? 'Подтвердить доставку' : 'Отметьте все позиции',
               style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600,
-                color: _allDelivered ? Colors.white : AppColors.textMuted,
+                fontSize: 16, fontWeight: FontWeight.w700,
+                color: allDelivered ? Colors.white : AppColors.textMuted,
               ),
             ),
           ],
@@ -284,46 +243,45 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     );
   }
 
-  Widget _buildSuccess(BuildContext context) {
+  Widget _buildSuccess(BuildContext context, OrderEntity order) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 80, height: 80,
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.check, color: Colors.white, size: 44),
-              ),
-              const SizedBox(height: 20),
-              const Text('Доставка подтверждена!',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.text)),
-              const SizedBox(height: 8),
-              Text(_data.name,
-                  style: const TextStyle(fontSize: 15, color: AppColors.textMuted)),
-              const SizedBox(height: 4),
-              Text('Заказ #${_data.orderId} успешно доставлен',
-                  style: const TextStyle(fontSize: 14, color: AppColors.textMuted)),
-              const SizedBox(height: 32),
-              GestureDetector(
-                onTap: () => context.go('/courier'),
-                child: Container(
-                  height: 56, width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [BoxShadow(color: Color(0x661A6B4A), blurRadius: 16, offset: Offset(0, 4))],
-                  ),
-                  child: const Center(
-                    child: Text('К доставкам',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80, height: 80,
+                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                  child: const Icon(Icons.check, color: Colors.white, size: 40),
+                ),
+                const SizedBox(height: 20),
+                const Text('Доставка подтверждена!', style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.text)),
+                const SizedBox(height: 8),
+                Text(order.kindergartenName, style: const TextStyle(
+                    fontSize: 14, color: AppColors.textMuted)),
+                const SizedBox(height: 4),
+                Text('Заказ #${order.id} успешно доставлен',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity, height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/courier'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary, foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('К доставкам',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
